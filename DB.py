@@ -19,7 +19,6 @@ class DataBase:
         return True
 
     async def get_message(self, numb):
-        """НЕ АСИНХРОННАЯ ТАК КАК ВОЗВРАЩАЕТСЯ КОРУТИНА"""
         try:
             self.__cur.execute(f"SELECT * FROM messages WHERE number LIKE '{numb}' LIMIT 1")
             res = self.__cur.fetchone()

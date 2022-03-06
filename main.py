@@ -56,10 +56,10 @@ async def get_message(numb: int):
 
 async def save(received: str, sent: str):
     """Попытка сделать сохранение запроса в БД асинхронным"""
-    await dbase.add_messages(received, sent)
+    await dbase.add_message(received, sent)
 
 
-@app.post("/webhook/{TOKEN}")
+@app.post("/send_message")
 async def post_process_telegram_update(message: MessageBodyModel, request: Request):
     """Чуть чуть адаптированная функция"""
     try:
