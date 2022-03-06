@@ -9,6 +9,7 @@ from fastapi import FastAPI, Request
 from httpx import AsyncClient
 from pyngrok import ngrok
 from validations import MessageBodyModel, ResponseToMessage
+from my_own_valids import Price_of_crypt
 
 from COIN_MARKET_CAP import price_of_crypt
 from DB import DataBase
@@ -23,7 +24,7 @@ HOST_URL = None
 
 app = FastAPI()
 
-conn = sq.connect("messages.db")
+conn = sq.connect("messages.db", check_same_thread=False)
 conn.row_factory = sq.Row
 dbase = DataBase(conn)
 
@@ -31,28 +32,42 @@ if TOKEN == "":
     exit("No secret found, exiting now!")
 
 
-@app.get("/price")
-def get_price(CRYPT: str, CURRENCY: str):
-    price = price_of_crypt(CRYPT, CURRENCY)
-    my_dict = {"from": f"{CRYPT}", "to": f"{CURRENCY}", "price": f"{price}"}
-    return my_dict
+@app.get("/get_price")
+def get_price(crypt: str, currency: str):
+    """Функция-обработчик позволяющая с помощью API получить цену критовалюты
+    как в телеграм боте но уже в JSON"""
+    try:
+        price = price_of_crypt(crypt, currency)
+        my_dict = {"fromm": f"{crypt}", "to": f"{currency}", "price": f"{price}"}
+        price_dict = Price_of_crypt(**my_dict)
+        # print(price_dict)
+        return price_dict
+    except Exception as e:
+        print(e)
 
 
-async def save(received: dict, sent: dict):
-    j1 = json.dumps(received)
-    j2 = json.dumps(sent)
-    await dbase.add_messages(j1)
-    await dbase.add_messages(j2)
+@app.get("/get_message")
+async def get_message(numb: int):
+    """Функция-обработчик позволяющая с помощью API получить весь запрос
+    с помощью его номера"""
+    mes = await dbase.get_message(numb)
+    return mes
+
+
+async def save(received: str, sent: str):
+    """Попытка сделать сохранение запроса в БД асинхронным"""
+    await dbase.add_messages(received, sent)
 
 
 @app.post("/webhook/{TOKEN}")
 async def post_process_telegram_update(message: MessageBodyModel, request: Request):
+    """Чуть чуть адаптированная функция"""
     try:
         mes = message.message.text
         crypt, currency = mes.split(" ")
         price = get_price(crypt, currency)["price"]
         my_dict = {"text": f"Цена {crypt} в {currency}: {price}", "chat_id": message.message.chat.id}
-        await save(message.dict(), my_dict)
+        await save(mes, my_dict["text"])
     except Exception as e:
         print(e)
         my_dict = {"text": "Извините, но вы что-то не так ввели!", "chat_id": message.message.chat.id}
@@ -63,6 +78,7 @@ async def post_process_telegram_update(message: MessageBodyModel, request: Reque
 
 
 async def request(url: str, payload: dict, debug: bool = False):
+    """ПОЛНОСТЬЮ СКОПИРОВАННАЯ ФУНКЦИЯ"""
     async with AsyncClient() as client:
         request = await client.post(url, json=payload)
         if debug:
@@ -82,13 +98,13 @@ async def request(url: str, payload: dict, debug: bool = False):
 
 
 async def set_telegram_webhook_url() -> bool:
+    """ПОЛНОСТЬЮ СКОПИРОВАННАЯ ФУНКЦИЯ"""
     payload = {"url": f"{HOST_URL}/webhook/{TOKEN}"}
     req = await request(TELEGRAM_SET_WEBHOOK_URL, payload)
     return req.status_code == 200
 
 
 if __name__ == "__main__":
-
     PORT = 8000
     http_tunnel = ngrok.connect(PORT, bind_tls=True)
     public_url = http_tunnel.public_url
