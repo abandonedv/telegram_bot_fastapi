@@ -22,9 +22,6 @@ def price_of_crypt(crypto, currency):
         session.headers.update(headers)
 
         response = session.get(url, params=parameters)
-        with open(
-                "../../Downloads/Telegram-Bot-Python-FastAPI-master/Telegram-Bot-Python-FastAPI-master/src/updates.json", "w") as file:
-            json.dump(response.json(), file, indent=2, ensure_ascii=False)
         data = json.loads(response.text)
         for k in data["data"]:
             id = k
@@ -33,7 +30,3 @@ def price_of_crypt(crypto, currency):
         return price
     except Exception as e:
         print(e)
-
-
-
-# help(price_of_bit)

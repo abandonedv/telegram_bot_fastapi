@@ -13,7 +13,7 @@ class DataBase:
             self.__cur.execute("INSERT INTO messages VALUES (NULL, ?, ?, ?)", (mes, ans, t))
             self.__db.commit()
         except sq.Error as e:
-            print("Ошибка в БД: " + str(e))
+            print("Ошибка добавления в БД " + str(e))
             return False
 
         return True

@@ -1,6 +1,4 @@
 import asyncio
-import json
-import pprint
 import sqlite3 as sq
 from sys import exit
 
@@ -8,11 +6,11 @@ import uvicorn
 from fastapi import FastAPI, Request
 from httpx import AsyncClient
 from pyngrok import ngrok
-from validations import MessageBodyModel, ResponseToMessage
-from my_own_valids import Price_of_crypt
 
-from COIN_MARKET_CAP import price_of_crypt
-from DB import DataBase
+from coin_market_cap_api import price_of_crypt
+from data_base import DataBase
+from my_own_valids import Price_of_crypt
+from validations import MessageBodyModel, ResponseToMessage
 
 TOKEN = "5141013666:AAFDkri_oHLhSxP5fbu0qFEAgm_BDwZ2Hn4"
 TELEGRAM_SEND_MESSAGE_URL = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
@@ -40,7 +38,6 @@ def get_price(crypt: str, currency: str):
         price = price_of_crypt(crypt, currency)
         my_dict = {"fromm": f"{crypt}", "to": f"{currency}", "price": f"{price}"}
         price_dict = Price_of_crypt(**my_dict)
-        # print(price_dict)
         return price_dict
     except Exception as e:
         print(e)
@@ -59,22 +56,20 @@ async def save(received: str, sent: str):
     await dbase.add_message(received, sent)
 
 
-@app.post("/send_message")
+@app.post("/webhook/{TOKEN}")
 async def post_process_telegram_update(message: MessageBodyModel, request: Request):
     """Чуть чуть адаптированная функция"""
     try:
         mes = message.message.text
         crypt, currency = mes.split(" ")
-        price = get_price(crypt, currency)["price"]
+        price = get_price(crypt, currency).price
         my_dict = {"text": f"Цена {crypt} в {currency}: {price}", "chat_id": message.message.chat.id}
         await save(mes, my_dict["text"])
     except Exception as e:
         print(e)
         my_dict = {"text": "Извините, но вы что-то не так ввели!", "chat_id": message.message.chat.id}
     finally:
-        js = ResponseToMessage(**my_dict)
-        pprint.pprint(js)
-        return js
+        return ResponseToMessage(**my_dict)
 
 
 async def request(url: str, payload: dict, debug: bool = False):
